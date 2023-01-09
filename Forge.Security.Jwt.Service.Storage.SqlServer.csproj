@@ -1,7 +1,7 @@
 ﻿<Project Sdk="Microsoft.NET.Sdk">
 
 	<PropertyGroup>
-		<TargetFrameworks>net5.0;net6.0</TargetFrameworks>
+		<TargetFrameworks>netcoreapp3.1;net6.0</TargetFrameworks>
 		<Version>1.0.0.0</Version>
 		<Copyright>Copyright © Zoltan Juhasz, 2022</Copyright>
 		<Description>Forge Security Jwt Service Storage SqlServer</Description>
@@ -12,26 +12,26 @@
 		<AssemblyVersion>1.0.0.2</AssemblyVersion>
 		<Title>Forge Security Jwt Service Storage SqlServer</Title>
 		<SignAssembly>true</SignAssembly>
-		<AssemblyOriginatorKeyFile>..\..\.Documents\Forge.pfx</AssemblyOriginatorKeyFile>
+		<AssemblyOriginatorKeyFile>..\.Documents\Forge.pfx</AssemblyOriginatorKeyFile>
 		<GeneratePackageOnBuild>false</GeneratePackageOnBuild>
-		<ProjectGuid>{C5FAF43B-ACBC-42AE-82F9-29F22C40EBDD}</ProjectGuid>
+		<ProjectGuid>{55C0382D-FAA5-4DA3-A617-3BAE3E2FD0B4}</ProjectGuid>
 	</PropertyGroup>
 
 	<ItemGroup>
 		<PackageReference Include="Microsoft.Extensions.DependencyInjection.Abstractions" Version="6.0.0" />
 	</ItemGroup>
 
-	<ItemGroup Condition="'$(TargetFramework)' == 'net5.0'">
-		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="5.0.17" />
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="5.0.17">
+	<ItemGroup Condition="'$(TargetFramework)' == 'netcoreapp3.1'">
+		<PackageReference Include="Microsoft.EntityFrameworkCore" Version="3.1.31" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Design" Version="3.1.31">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="5.0.17">
+		<PackageReference Include="Microsoft.EntityFrameworkCore.Tools" Version="3.1.31">
 			<PrivateAssets>all</PrivateAssets>
 			<IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
 		</PackageReference>
-		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="5.0.17" />
+		<PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="3.1.31" />
 	</ItemGroup>
 
 	<ItemGroup Condition="'$(TargetFramework)' == 'net6.0'">
