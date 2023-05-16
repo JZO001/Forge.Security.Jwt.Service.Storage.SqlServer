@@ -8,6 +8,8 @@ using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Linq;
 using Microsoft.Extensions.Options;
+using System.Threading;
+using Microsoft.EntityFrameworkCore;
 
 namespace Forge.Security.Jwt.Service.Storage.SqlServer
 {
@@ -25,45 +27,49 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
         /// <exception cref="System.ArgumentNullException">serviceProvider
         /// or
         /// serializationProvider</exception>
-        public SqlServerStorage(ISerializationProvider serializationProvider, 
+        public SqlServerStorage(ISerializationProvider serializationProvider,
             IOptions<SqlServerStorageOptions> options)
         {
             if (serializationProvider == null) throw new ArgumentNullException(nameof(serializationProvider));
             if (options == null) throw new ArgumentNullException(nameof(options));
+
             _serializationProvider = serializationProvider;
             _options = options.Value;
         }
 
         /// <summary>Clears items from the storage</summary>
-        public async Task ClearAsync()
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async Task ClearAsync(CancellationToken cancellationToken = default)
         {
             using (DatabaseContext dbContext = Create())
             {
-                dbContext.RemoveRange(GetTokens(dbContext));
-                await dbContext.SaveChangesAsync().ConfigureAwait(false);
+                dbContext.RemoveRange(GetTokensAsync(dbContext));
+                await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
         /// <summary>Determines whether the specified key exist or not.</summary>
         /// <param name="key">The key.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>
         ///   <c>true</c> if the specified key exists; otherwise, <c>false</c>.</returns>
-        public async Task<bool> ContainsKeyAsync(string key)
+        public async Task<bool> ContainsKeyAsync(string key, CancellationToken cancellationToken = default)
         {
             using (DatabaseContext dbContext = Create())
             {
-                return GetToken(dbContext, key) != null;
+                return await GetTokenAsync(dbContext, key, cancellationToken) != null;
             }
         }
 
         /// <summary>Gets stored data</summary>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>List of data</returns>
-        public async Task<IEnumerable<JwtRefreshToken>> GetAsync()
+        public async Task<IEnumerable<JwtRefreshToken>> GetAsync(CancellationToken cancellationToken = default)
         {
             List<JwtRefreshToken> result = new List<JwtRefreshToken>();
             using (DatabaseContext dbContext = Create())
             {
-                GetTokens(dbContext).ForEach(token =>
+                (await GetTokensAsync(dbContext, cancellationToken)).ForEach(token =>
                 {
                     result.Add(_serializationProvider.Deserialize<JwtRefreshToken>(token.Value));
                 });
@@ -73,13 +79,14 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
         /// <summary>Gets the item by key</summary>
         /// <param name="key">The key.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>Data or default</returns>
-        public async Task<JwtRefreshToken> GetAsync(string key)
+        public async Task<JwtRefreshToken> GetAsync(string key, CancellationToken cancellationToken = default)
         {
             JwtRefreshToken result = null;
             using (DatabaseContext dbContext = Create())
             {
-                Token token = GetToken(dbContext, key);
+                Token token = await GetTokenAsync(dbContext, key, cancellationToken);
                 if (token != null)
                 {
                     result = _serializationProvider.Deserialize<JwtRefreshToken>(token.Value);
@@ -90,13 +97,15 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
         /// <summary>Removes an item from the storage</summary>
         /// <param name="key">The key.</param>
+        /// <param name="cancellationToken">The cancellation token.</param>
         /// <returns>True, if it was successful, otherwise, False.</returns>
-        public async Task<bool> RemoveAsync(string key)
+        public async Task<bool> RemoveAsync(string key, CancellationToken cancellationToken = default)
         {
             bool result = false;
+
             using (DatabaseContext dbContext = Create())
             {
-                Token token = GetToken(dbContext, key);
+                Token token = await GetTokenAsync(dbContext, key, cancellationToken);
                 if (token != null)
                 {
                     dbContext.Remove(token);
@@ -104,19 +113,21 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
                     await dbContext.SaveChangesAsync().ConfigureAwait(false);
                 }
             }
+
             return result;
         }
 
         /// <summary>Add or update an item</summary>
         /// <param name="key">The key.</param>
         /// <param name="data">The data.</param>
-        public async Task SetAsync(string key, JwtRefreshToken data)
+        /// <param name="cancellationToken">The cancellation token.</param>
+        public async Task SetAsync(string key, JwtRefreshToken data, CancellationToken cancellationToken = default)
         {
             using (DatabaseContext dbContext = Create())
             {
                 Token token = new Token() { Id = key, Value = _serializationProvider.Serialize(data) };
                 dbContext.Tokens.Add(token);
-                await dbContext.SaveChangesAsync().ConfigureAwait(false);
+                await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
 
@@ -125,21 +136,26 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
             return new DatabaseContext(_options.Builder.Options);
         }
 
-        private List<Token> GetTokens(DatabaseContext dbContext)
+        private Task<List<Token>> GetTokensAsync(DatabaseContext dbContext, CancellationToken cancellationToken = default)
         {
-            var query = from token in dbContext.Tokens
-                        select token;
-            return query.ToList();
+            IQueryable<Token> query = from token in dbContext.Tokens
+                                      select token;
+
+            return query.ToListAsync(cancellationToken);
         }
 
-        private Token GetToken(DatabaseContext dbContext, string key)
+        private async Task<Token> GetTokenAsync(DatabaseContext dbContext, string key, CancellationToken cancellationToken = default)
         {
             Token result = null;
+
             var query = from token in dbContext.Tokens
                         where token.Id == key
                         select token;
-            List<Token> tokens = query.Take(1).ToList();
+
+            List<Token> tokens = await query.Take(1).ToListAsync(cancellationToken);
+
             if (tokens.Count > 0) result = tokens[0];
+
             return result;
         }
 
