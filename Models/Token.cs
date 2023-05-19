@@ -13,11 +13,11 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer.Models
         /// <value>The identifier.</value>
         [Key]
         [DatabaseGenerated(DatabaseGeneratedOption.None)]
-        public string Id { get; set; }
+        public string Id { get; set; } = null!;
 
         /// <summary>Gets or sets the value.</summary>
         /// <value>The value.</value>
-        public string Value { get; set; }
+        public string Value { get; set; } = null!;
 
     }
 

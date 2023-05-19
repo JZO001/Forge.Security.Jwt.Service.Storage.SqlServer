@@ -10,7 +10,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
         /// <summary>Gets or sets the connection string.</summary>
         /// <value>The connection string.</value>
-        public string ConnectionString { get; set; }
+        public string ConnectionString { get; set; } = null!;
 
         /// <summary>Gets the DbContextOptionsBuilder.</summary>
         /// <value>The DbContextOptionsBuilder.</value>

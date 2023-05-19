@@ -21,7 +21,11 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer.Database
 
         /// <summary>Gets or sets the default connection string.</summary>
         /// <value>The default connection string.</value>
-        public static string DefaultConnectionString { get; set; } = "Data Source=.\\SQLEXPRESS2019;Initial Catalog=ForgeJwtServiceStorage;Integrated Security=True";
+#if DEBUG
+        public static string DefaultConnectionString { get; set; } = "";
+#else
+        public static string DefaultConnectionString { get; set; } = "Data Source=.\\SQLEXPRESS2019;Initial Catalog=ForgeJwtServiceStorage;Integrated Security=True;TrustServerCertificate=True";
+#endif
 
         private static DbContextOptions<DatabaseContext> CreateOptions()
         {

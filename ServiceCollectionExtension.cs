@@ -4,7 +4,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
 using Microsoft.EntityFrameworkCore;
 using Forge.Security.Jwt.Shared.Serialization;
-using System;
 using Forge.Security.Jwt.Service.Storage.SqlServer.Database;
 
 namespace Forge.Security.Jwt.Service.Storage.SqlServer

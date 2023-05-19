@@ -3,12 +3,7 @@ using Forge.Security.Jwt.Service.Storage.SqlServer.Models;
 using Forge.Security.Jwt.Shared.Serialization;
 using Forge.Security.Jwt.Shared.Service.Models;
 using Forge.Security.Jwt.Shared.Storage;
-using System;
-using System.Collections.Generic;
-using System.Threading.Tasks;
-using System.Linq;
 using Microsoft.Extensions.Options;
-using System.Threading;
 using Microsoft.EntityFrameworkCore;
 
 namespace Forge.Security.Jwt.Service.Storage.SqlServer
@@ -66,7 +61,8 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
         /// <returns>List of data</returns>
         public async Task<IEnumerable<JwtRefreshToken>> GetAsync(CancellationToken cancellationToken = default)
         {
-            List<JwtRefreshToken> result = new List<JwtRefreshToken>();
+            List<JwtRefreshToken> result = new();
+
             using (DatabaseContext dbContext = Create())
             {
                 (await GetTokensAsync(dbContext, cancellationToken)).ForEach(token =>
@@ -74,6 +70,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
                     result.Add(_serializationProvider.Deserialize<JwtRefreshToken>(token.Value));
                 });
             }
+
             return result;
         }
 
@@ -83,7 +80,8 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
         /// <returns>Data or default</returns>
         public async Task<JwtRefreshToken> GetAsync(string key, CancellationToken cancellationToken = default)
         {
-            JwtRefreshToken result = null;
+            JwtRefreshToken? result = null;
+
             using (DatabaseContext dbContext = Create())
             {
                 Token token = await GetTokenAsync(dbContext, key, cancellationToken);
@@ -92,7 +90,8 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
                     result = _serializationProvider.Deserialize<JwtRefreshToken>(token.Value);
                 }
             }
-            return result;
+
+            return result!;
         }
 
         /// <summary>Removes an item from the storage</summary>
@@ -146,7 +145,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
         private async Task<Token> GetTokenAsync(DatabaseContext dbContext, string key, CancellationToken cancellationToken = default)
         {
-            Token result = null;
+            Token? result = null;
 
             var query = from token in dbContext.Tokens
                         where token.Id == key
@@ -156,7 +155,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
             if (tokens.Count > 0) result = tokens[0];
 
-            return result;
+            return result!;
         }
 
     }
