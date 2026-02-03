@@ -3,8 +3,8 @@ using Forge.Security.Jwt.Service.Storage.SqlServer.Models;
 using Forge.Security.Jwt.Shared.Serialization;
 using Forge.Security.Jwt.Shared.Service.Models;
 using Forge.Security.Jwt.Shared.Storage;
-using Microsoft.Extensions.Options;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Options;
 
 namespace Forge.Security.Jwt.Service.Storage.SqlServer
 {
@@ -25,8 +25,8 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
         public SqlServerStorage(ISerializationProvider serializationProvider,
             IOptions<SqlServerStorageOptions> options)
         {
-            if (serializationProvider == null) throw new ArgumentNullException(nameof(serializationProvider));
-            if (options == null) throw new ArgumentNullException(nameof(options));
+            if (serializationProvider is null) throw new ArgumentNullException(nameof(serializationProvider));
+            if (options is null) throw new ArgumentNullException(nameof(options));
 
             _serializationProvider = serializationProvider;
             _options = options.Value;
@@ -84,7 +84,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
             using (DatabaseContext dbContext = Create())
             {
-                Token token = await GetTokenAsync(dbContext, key, cancellationToken);
+                Token? token = await GetTokenAsync(dbContext, key, cancellationToken);
                 if (token != null)
                 {
                     result = _serializationProvider.Deserialize<JwtRefreshToken>(token.Value);
@@ -104,7 +104,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
             using (DatabaseContext dbContext = Create())
             {
-                Token token = await GetTokenAsync(dbContext, key, cancellationToken);
+                Token? token = await GetTokenAsync(dbContext, key, cancellationToken);
                 if (token != null)
                 {
                     dbContext.Remove(token);
@@ -124,8 +124,19 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
         {
             using (DatabaseContext dbContext = Create())
             {
+                Token? existingToken = await GetTokenAsync(dbContext, key, cancellationToken);
                 Token token = new Token() { Id = key, Value = _serializationProvider.Serialize(data) };
-                dbContext.Tokens.Add(token);
+
+                if (existingToken != null)
+                {
+                    existingToken.Value = token.Value;
+                    dbContext.Tokens.Update(existingToken);
+                }
+                else
+                {
+                    dbContext.Tokens.Add(token);
+                }
+
                 await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
@@ -135,7 +146,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
             return new DatabaseContext(_options.Builder.Options);
         }
 
-        private Task<List<Token>> GetTokensAsync(DatabaseContext dbContext, CancellationToken cancellationToken = default)
+        private static Task<List<Token>> GetTokensAsync(DatabaseContext dbContext, CancellationToken cancellationToken = default)
         {
             IQueryable<Token> query = from token in dbContext.Tokens
                                       select token;
@@ -143,19 +154,21 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
             return query.ToListAsync(cancellationToken);
         }
 
-        private async Task<Token> GetTokenAsync(DatabaseContext dbContext, string key, CancellationToken cancellationToken = default)
+        private static async Task<Token?> GetTokenAsync(DatabaseContext dbContext, string key, CancellationToken cancellationToken = default)
         {
             Token? result = null;
 
-            var query = from token in dbContext.Tokens
-                        where token.Id == key
-                        select token;
+            IQueryable<Token> query = from token in dbContext.Tokens
+                                      where token.Id == key
+                                      select token;
 
-            List<Token> tokens = await query.Take(1).ToListAsync(cancellationToken);
+            List<Token> tokens = await query
+                .Take(1)
+                .ToListAsync(cancellationToken);
 
             if (tokens.Count > 0) result = tokens[0];
 
-            return result!;
+            return result;
         }
 
     }

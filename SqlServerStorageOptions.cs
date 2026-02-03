@@ -1,5 +1,6 @@
 ﻿using Forge.Security.Jwt.Service.Storage.SqlServer.Database;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 
 namespace Forge.Security.Jwt.Service.Storage.SqlServer
 {
@@ -14,6 +15,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
         /// <summary>Gets the DbContextOptionsBuilder.</summary>
         /// <value>The DbContextOptionsBuilder.</value>
+        [JsonIgnore]
         public DbContextOptionsBuilder<DatabaseContext> Builder { get; private set; } = new DbContextOptionsBuilder<DatabaseContext>();
 
     }

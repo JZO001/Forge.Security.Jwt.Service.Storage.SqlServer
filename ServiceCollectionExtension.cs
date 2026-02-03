@@ -1,10 +1,10 @@
-﻿using Forge.Security.Jwt.Shared.Service.Models;
+﻿using Forge.Security.Jwt.Service.Storage.SqlServer.Database;
+using Forge.Security.Jwt.Shared.Serialization;
+using Forge.Security.Jwt.Shared.Service.Models;
 using Forge.Security.Jwt.Shared.Storage;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.DependencyInjection.Extensions;
-using Microsoft.EntityFrameworkCore;
-using Forge.Security.Jwt.Shared.Serialization;
-using Forge.Security.Jwt.Service.Storage.SqlServer.Database;
 
 namespace Forge.Security.Jwt.Service.Storage.SqlServer
 {
@@ -25,7 +25,16 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
                 .Configure<SqlServerStorageOptions>(configureOptions =>
                 {
                     configure?.Invoke(configureOptions);
-                    configureOptions.Builder.UseSqlServer(configureOptions.ConnectionString);
+                    configureOptions
+                        .Builder
+                        .UseSqlServer(configureOptions.ConnectionString, sqlOptions =>
+                        {
+                            sqlOptions.EnableRetryOnFailure(
+                                maxRetryCount: 3,
+                                maxRetryDelay: TimeSpan.FromSeconds(5),
+                                errorNumbersToAdd: null);
+                        });
+
                     using (DatabaseContext context = new DatabaseContext(configureOptions.Builder.Options))
                     {
                         context.Database.Migrate();
