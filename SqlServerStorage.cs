@@ -38,7 +38,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
         {
             using (DatabaseContext dbContext = Create())
             {
-                dbContext.RemoveRange(GetTokensAsync(dbContext));
+                dbContext.RemoveRange(await GetTokensAsync(dbContext, cancellationToken).ConfigureAwait(false));
                 await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
             }
         }
@@ -52,7 +52,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
         {
             using (DatabaseContext dbContext = Create())
             {
-                return await GetTokenAsync(dbContext, key, cancellationToken) != null;
+                return await GetTokenAsync(dbContext, key, cancellationToken).ConfigureAwait(false) is not null;
             }
         }
 
@@ -65,7 +65,7 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
             using (DatabaseContext dbContext = Create())
             {
-                (await GetTokensAsync(dbContext, cancellationToken)).ForEach(token =>
+                (await GetTokensAsync(dbContext, cancellationToken).ConfigureAwait(false)).ForEach(token =>
                 {
                     result.Add(_serializationProvider.Deserialize<JwtRefreshToken>(token.Value));
                 });
@@ -84,8 +84,8 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
             using (DatabaseContext dbContext = Create())
             {
-                Token? token = await GetTokenAsync(dbContext, key, cancellationToken);
-                if (token != null)
+                Token? token = await GetTokenAsync(dbContext, key, cancellationToken).ConfigureAwait(false);
+                if (token is not null)
                 {
                     result = _serializationProvider.Deserialize<JwtRefreshToken>(token.Value);
                 }
@@ -104,12 +104,12 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
             using (DatabaseContext dbContext = Create())
             {
-                Token? token = await GetTokenAsync(dbContext, key, cancellationToken);
+                Token? token = await GetTokenAsync(dbContext, key, cancellationToken).ConfigureAwait(false);
                 if (token != null)
                 {
                     dbContext.Remove(token);
                     result = true;
-                    await dbContext.SaveChangesAsync().ConfigureAwait(false);
+                    await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
                 }
             }
 
@@ -122,22 +122,44 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
         /// <param name="cancellationToken">The cancellation token.</param>
         public async Task SetAsync(string key, JwtRefreshToken data, CancellationToken cancellationToken = default)
         {
-            using (DatabaseContext dbContext = Create())
+            // The primary key on Token.Id is the source of truth across all app instances,
+            // so the read-then-write below is not atomic: a concurrent SetAsync/RemoveAsync
+            // (even from another process) may insert or delete the same key between our read
+            // and our SaveChanges. On such a conflict we discard the context, re-read and retry,
+            // so the operation converges to a correct upsert instead of throwing.
+            const int maxAttempts = 3;
+
+            string serializedValue = _serializationProvider.Serialize(data);
+
+            for (int attempt = 1; ; attempt++)
             {
-                Token? existingToken = await GetTokenAsync(dbContext, key, cancellationToken);
-                Token token = new Token() { Id = key, Value = _serializationProvider.Serialize(data) };
-
-                if (existingToken != null)
+                using (DatabaseContext dbContext = Create())
                 {
-                    existingToken.Value = token.Value;
-                    dbContext.Tokens.Update(existingToken);
-                }
-                else
-                {
-                    dbContext.Tokens.Add(token);
-                }
+                    Token? existingToken = await GetTokenAsync(dbContext, key, cancellationToken).ConfigureAwait(false);
 
-                await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                    if (existingToken != null)
+                    {
+                        existingToken.Value = serializedValue;
+                        dbContext.Tokens.Update(existingToken);
+                    }
+                    else
+                    {
+                        dbContext.Tokens.Add(new Token() { Id = key, Value = serializedValue });
+                    }
+
+                    try
+                    {
+                        await dbContext.SaveChangesAsync(cancellationToken).ConfigureAwait(false);
+                        return;
+                    }
+                    catch (DbUpdateException) when (attempt < maxAttempts)
+                    {
+                        // Insert conflict (another writer created the row) or an update whose row
+                        // was concurrently deleted (DbUpdateConcurrencyException). Retry with a
+                        // fresh read; the next pass takes the correct branch. After maxAttempts the
+                        // exception is allowed to propagate.
+                    }
+                }
             }
         }
 
@@ -164,7 +186,8 @@ namespace Forge.Security.Jwt.Service.Storage.SqlServer
 
             List<Token> tokens = await query
                 .Take(1)
-                .ToListAsync(cancellationToken);
+                .ToListAsync(cancellationToken)
+                .ConfigureAwait(false);
 
             if (tokens.Count > 0) result = tokens[0];
 
