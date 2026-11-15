@@ -13,7 +13,7 @@ To install the package add the following line to you csproj file replacing x.x.x
 You can also install via the .NET CLI with the following command:
 
 ```
-dotnet add Forge.Security.Jwt.Service.Storage.SqlServer
+dotnet add package Forge.Security.Jwt.Service.Storage.SqlServer
 ```
 
 If you're using Visual Studio you can also install via the built in NuGet package manager.
@@ -26,7 +26,7 @@ You will need to register the storage provider services with the service collect
 public void ConfigureServices(IServiceCollection services)
 {
 	// ... preinitialization steps
-    services.AddForgeJwtServerAuthenticationCore();
+    services.AddForgeJwtServerAuthenticationCore(Configuration);
 
 	// HERE IT IS, always add this code after the "Forge.Security.Jwt.Service" library initialization
 	services.AddForgeJwtServiceSqlServerStorage(config => {

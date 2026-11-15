@@ -1,0 +1,3 @@
+# The EF Core migrations are generated code; EF needs them public. No XML documentation is written for them.
+[*.cs]
+dotnet_diagnostic.CS1591.severity = none
